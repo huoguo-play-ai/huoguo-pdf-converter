@@ -240,7 +240,12 @@ button.primary:hover:not(:disabled) {
   gap: 1.2vw;
   margin: 4vh 0;
 }
-.features span::first-letter {
+.features span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.features svg {
   color: var(--blue);
 }
 main > footer {
@@ -504,6 +509,12 @@ progress::-webkit-progress-value {
   position: relative;
   padding: 12px;
 }
+.compare-frame {
+  position: relative;
+}
+.compare-frame:has(#compare[hidden]) {
+  display: none;
+}
 #compare {
   position: relative;
   background: white;
@@ -531,6 +542,9 @@ progress::-webkit-progress-value {
   left: 0;
   top: 0;
   transform-origin: top left;
+}
+#wordLayer .preview-doc :is(section.docx, section.docx *) {
+  font-family: var(--preview-font), "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif !important;
 }
 .pdf-label,
 .word-label {
@@ -600,7 +614,8 @@ progress::-webkit-progress-value {
 }
 #results {
   padding: 0.8em;
-  max-height: 43vh;
+  min-height: 0;
+  overflow-y: auto;
 }
 .result {
   gap: 4px;
@@ -628,13 +643,16 @@ progress::-webkit-progress-value {
 }
 .actions {
   gap: 1.4vh;
-  flex: 1;
+  flex: 1 0 auto;
   margin-top: 1.4vh;
 }
 .actions .pet-slot {
   flex: 1;
   min-height: 0;
-  padding: 0.5em;
+  overflow: hidden;
+}
+.actions button {
+  flex-shrink: 0;
 }
 #message {
   position: absolute;
@@ -890,9 +908,32 @@ progress::-webkit-progress-value {
   #handle {
     transform: translate(-50%, -50%) rotate(90deg);
   }
+  .viewport {
+    margin-block: 24px;
+  }
   .pdf-label {
-    top: 7px;
+    left: 0;
+    bottom: calc(100% + 2px);
+  }
+  .word-label {
+    right: 0;
+    top: calc(100% + 2px);
     bottom: auto;
+  }
+  body[data-state="report"] main {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100dvh;
+  }
+  body.record[data-state="report"] main {
+    height: calc(100dvh / 1.15);
+  }
+  .record .viewer {
+    height: 48vh;
+  }
+  #report {
+    min-height: 0;
+    grid-template-rows: auto auto minmax(8rem, 1fr);
   }
   #report aside {
     display: flex;
@@ -900,13 +941,15 @@ progress::-webkit-progress-value {
   #results {
     order: 2;
     margin-top: 8px;
-    max-height: 18vh;
+    flex: 1;
+    height: 0;
     border-radius: 18px;
     padding: 0.45em;
     font-size: 13px;
   }
   .actions {
     display: grid;
+    flex: none;
     grid-template-columns: 1fr auto 52px;
     align-items: center;
     gap: 6px;
@@ -964,7 +1007,17 @@ progress::-webkit-progress-value {
 }
 @media (min-width: 640px) and (orientation: landscape) {
   #report aside {
+    gap: 1.4vh;
     height: 83vh;
+  }
+  #report .actions {
+    display: contents;
+  }
+  #results {
+    flex: 0 1 auto;
+  }
+  .actions .pet-slot {
+    flex: 1 0 min(9vh, 64px);
   }
   .record .viewer,
   .record #report aside {

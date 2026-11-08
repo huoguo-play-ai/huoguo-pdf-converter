@@ -8,7 +8,6 @@
     selection = 0,
     paint = 0,
     documentView,
-    elapsed,
     toastTimer;
   const icon = (name) =>
     '<svg aria-hidden="true"><use href="#' + name + '"/></svg>';
@@ -177,12 +176,16 @@
   }
   async function convert(it) {
     try {
-      Object.assign(
-        it,
-        await window.pdfToDocx(await it.file.arrayBuffer(), {
-          font: $("#font").value,
-        }),
-      );
+      const buffer = await it.file.arrayBuffer();
+      it.font = $("#font").value;
+      const start = performance.now();
+      let result;
+      try {
+        result = await window.pdfToDocx(buffer, { font: it.font });
+      } finally {
+        it.duration = performance.now() - start;
+      }
+      Object.assign(it, result);
       if (it.ok) {
         const base = it.file.name.replace(/\.pdf$/i, "");
         it.output = base + ".docx";
@@ -199,7 +202,6 @@
   }
   async function run() {
     if (state !== "queue") return;
-    const start = performance.now();
     stateTo("running");
     for (const [i, it] of items.entries()) {
       $("#badge").textContent = "正在转换 " + it.file.name;
@@ -210,7 +212,9 @@
       await Promise.all([convert(it), showMotion(it)]);
       if (!it.ok) shake();
     }
-    elapsed = ((performance.now() - start) / 1000).toFixed(1);
+    const elapsed = (
+      items.reduce((sum, it) => sum + (it.duration || 0), 0) / 1000
+    ).toFixed(1);
     stateTo("report");
     $("#badge").textContent =
       "✓ " + items.length + " 个文件全部完成 · 用时 " + elapsed + " 秒";
@@ -248,6 +252,57 @@
       }),
     );
   }
+  function positionPictures(xml, host) {
+    // The writer emits one picture per drawing, in body order. Include inline
+    // pictures when matching, but only reposition anchors relative to the page.
+    const pictures = host.querySelectorAll("section.docx article img");
+    const drawings = [...xml.getElementsByTagNameNS("*", "drawing")].filter(
+      (el) => el.getElementsByTagNameNS("*", "blip").length,
+    );
+    drawings.forEach((drawing, i) => {
+      const anchor = drawing.firstElementChild;
+      const image = pictures[i];
+      if (!image || anchor?.localName !== "anchor") return;
+      const offset = (axis) => {
+        const pos = anchor.getElementsByTagNameNS("*", axis)[0];
+        if (pos?.getAttribute("relativeFrom") === "page")
+          return pos.getElementsByTagNameNS("*", "posOffset")[0]?.textContent;
+      };
+      const extent = anchor.getElementsByTagNameNS("*", "extent")[0];
+      const dimensions = [
+        offset("positionH"),
+        offset("positionV"),
+        extent?.getAttribute("cx"),
+        extent?.getAttribute("cy"),
+      ];
+      if (
+        !dimensions.every(
+          (n) => n != null && n !== "" && Number.isFinite(Number(n)),
+        )
+      )
+        return;
+      const [left, top, width, height] = dimensions.map(
+        (n) => Number(n) / 12700 + "pt",
+      );
+      const wrapper = image.parentElement;
+      Object.assign(wrapper.style, {
+        position: "absolute",
+        float: "none",
+        left,
+        top,
+        width,
+        height,
+      });
+      Object.assign(image.style, {
+        display: "block",
+        width: "100%",
+        height: "100%",
+        left: "0",
+        top: "0",
+      });
+      image.closest("section.docx").append(wrapper);
+    });
+  }
   async function selectFile(it) {
     const token = ++selection;
     paint++;
@@ -270,6 +325,7 @@
       const styles = node("div", "");
       const options = {
         inWrapper: false,
+        keepOrigin: true,
         useBase64URL: true,
         ignoreLastRenderedPageBreak: false,
         renderAltChunks: false,
@@ -294,10 +350,12 @@
         children.push(paragraph);
       }
       body.children = children;
+      host.style.setProperty("--preview-font", JSON.stringify(it.font));
       await window.docx.renderDocument(model, host, styles, options);
       if (token !== selection) return;
       const sections = [...host.querySelectorAll("section.docx")];
       if (!sections.length) throw new Error("Word 预览没有生成页面");
+      positionPictures(model.documentPart._xmlDocument, host);
       $("#wordLayer").replaceChildren(styles, host);
       documentView = {
         host,

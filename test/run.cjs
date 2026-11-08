@@ -111,6 +111,18 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     assert.equal(await page.locator("#list li").count(), 2);
     await transfer.dispose();
     await page.locator("#clear").click();
+    await page.evaluate(() => {
+      const convert = window.pdfToDocx;
+      window.measuredMs = 0;
+      window.pdfToDocx = async (...args) => {
+        const start = performance.now();
+        try {
+          return await convert(...args);
+        } finally {
+          window.measuredMs += performance.now() - start;
+        }
+      };
+    });
     const screenshots = path.join(out, "界面");
     fs.mkdirSync(screenshots, { recursive: true });
     for (const [width, height] of [
@@ -138,6 +150,9 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
       );
       await page.waitForTimeout(650);
       await shot("2-拖入文件");
+      await page.evaluate(() => {
+        window.measuredMs = 0;
+      });
       await page.locator("#go").click();
       await page.locator("#sourceThumb canvas").waitFor();
       await page.locator("#blocks .block").first().waitFor();
@@ -174,6 +189,13 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
               el.getBoundingClientRect().width >
               el.closest("#compare").clientWidth * 0.9,
           ),
+      );
+      const badge = await page.locator("#badge").innerText();
+      const seconds = Number(badge.match(/用时 ([\d.]+) 秒/)[1]);
+      assert(
+        Math.abs(
+          seconds * 1000 - (await page.evaluate(() => window.measuredMs)),
+        ) < 60,
       );
       await shot("4-完成对比");
       const pos = await page.locator("#handle").boundingBox();
@@ -240,7 +262,100 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
             row.tables,
           );
         if (row.anchors) await rendered.locator("img").first().waitFor();
+        if (row.name === "4-简历.pdf") {
+          const frame = await page.locator("#compare").boundingBox();
+          if (width >= 640) {
+            const handle = await page.locator("#handle").boundingBox();
+            await page.mouse.move(
+              handle.x + handle.width / 2,
+              handle.y + handle.height / 2,
+            );
+            await page.mouse.down();
+            await page.mouse.move(frame.x, frame.y + frame.height / 2, {
+              steps: 8,
+            });
+            await page.mouse.up();
+          } else {
+            await page.locator("#split").focus();
+            await page.keyboard.press("Home");
+            const top = await page.locator(".pdf-label").boundingBox();
+            const bottom = await page.locator(".word-label").boundingBox();
+            assert(
+              top.y + top.height <= frame.y &&
+                bottom.y >= frame.y + frame.height,
+            );
+          }
+          assert.equal(await page.locator("#split").inputValue(), "0");
+          const image = await rendered.locator("img").boundingBox();
+          // Original PDF bounds from Poppler, in page points.
+          const scale = 595.28 / frame.width;
+          const actual = [
+            (image.x - frame.x) * scale,
+            (image.y - frame.y) * scale,
+            image.width * scale,
+            image.height * scale,
+          ];
+          const expected = [437, 39, 120, 120];
+          assert(
+            actual.every((v, i) => Math.abs(v - expected[i]) < 2),
+            JSON.stringify(actual),
+          );
+          const name = await rendered
+            .getByText("火锅", { exact: true })
+            .last()
+            .boundingBox();
+          assert(Math.abs((name.x - frame.x) * scale - 38) < 3);
+          console.log(
+            "简历照片（pt）",
+            actual,
+            "姓名左边距（pt）",
+            (name.x - frame.x) * scale,
+          );
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await shot("5-简历-完整Word");
+        }
       }
+      // Stress the sidebar independently of batch conversion speed.
+      await page.locator("#results").evaluate((list) => {
+        for (let i = 0; i < 30; i++)
+          list.append(list.firstElementChild.cloneNode(true));
+      });
+      for (const record of [false, true]) {
+        if (record) await page.keyboard.press("r");
+        const list = page.locator("#results");
+        await list.evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        });
+        assert(
+          await list.evaluate(
+            (el) =>
+              el.scrollTop > 0 &&
+              el.lastElementChild.getBoundingClientRect().bottom <=
+                el.getBoundingClientRect().bottom + 1,
+          ),
+        );
+        for (const id of ["zip", "again"]) {
+          assert(
+            await page.locator("#" + id).evaluate((el) => {
+              const r = el.getBoundingClientRect();
+              return el.contains(
+                document.elementFromPoint(
+                  r.left + r.width / 2,
+                  r.top + r.height / 2,
+                ),
+              );
+            }),
+          );
+        }
+        if (record) {
+          await shot("6-录屏-长列表");
+          await page.keyboard.press("r");
+        }
+      }
+      await page.locator("#results").evaluate((el, count) => {
+        while (el.children.length > count) el.lastElementChild.remove();
+        el.scrollTop = 0;
+      }, rows.length);
       const scan = rows.findIndex((r) => r.status === "扫描件已跳过");
       await page
         .locator("#results .result")

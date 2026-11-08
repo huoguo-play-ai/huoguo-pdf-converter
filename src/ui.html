@@ -10,6 +10,9 @@
 <body data-state="idle">
 <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <symbol id="doc" viewBox="0 0 24 24"><path d="M6 2h8l5 5v14H6z M14 2v6h5 M9 12h7 M9 16h5"/></symbol>
+<symbol id="batch" viewBox="0 0 24 24"><path d="M5 16H3V3h12v2 M8 7h9l4 4v10H8z M17 7v5h4"/></symbol>
+<symbol id="lines" viewBox="0 0 24 24"><path d="M3 6h18 M3 12h14 M3 18h18"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="m4 16 12-12a2 2 0 0 1 4 4L8 20l-5 1z M14 6l4 4"/></symbol>
 <symbol id="upload" viewBox="0 0 24 24"><path d="M12 15V3m-5 5 5-5 5 5M3 15v5h18v-5"/></symbol>
 <symbol id="down" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M3 16v4h18v-4"/></symbol>
 <symbol id="lock" viewBox="0 0 24 24"><path d="M5 10h14v11H5z M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
@@ -21,7 +24,7 @@
 <section id="idle">
 <h1>PDF 拖进来，<em>Word 带走</em></h1><p class="subtitle">排版几乎不变，打开就能直接改</p>
 <div id="drop" class="drop"><div class="upload"><svg><use href="#upload"/></svg></div><h2>把 PDF 拖到这里</h2><p>支持一次拖入多个文件</p><button class="primary pick">选择文件</button><div class="pet-slot"></div></div>
-<div class="features"><span>▢ &nbsp;批量转换</span><span>≡ &nbsp;版式还原</span><span>✎ &nbsp;打开就能改</span></div>
+<div class="features"><span><svg aria-hidden="true"><use href="#batch"/></svg>批量转换</span><span><svg aria-hidden="true"><use href="#lines"/></svg>版式还原</span><span><svg aria-hidden="true"><use href="#pen"/></svg>打开就能改</span></div>
 </section>
 <section id="queue" hidden>
 <div class="panel queue-panel"><div class="queue-title"><h2 id="count"></h2><small id="meta"></small></div><ul id="list"></ul>
@@ -35,10 +38,10 @@
 <section id="report" hidden>
 <h1 class="mobile-title">上面是 PDF<br><em>下面是 Word</em></h1>
 <div class="panel viewer"><div class="captions"><b>原 PDF</b><b>转换后的 Word</b></div>
-<div class="viewport"><div id="compare">
+<div class="viewport"><div class="compare-frame"><div id="compare">
 <div id="pdfLayer" class="layer"></div><div id="wordLayer" class="layer"></div>
-<span class="pdf-label">只能看，不能改</span><span class="word-label">可以直接改字</span>
-<div id="divider"><button id="handle" aria-label="调整对比分割位置">‹ ›</button></div></div><p id="message" role="status"></p></div>
+
+<div id="divider"><button id="handle" aria-label="调整对比分割位置">‹ ›</button></div></div><span class="pdf-label">只能看，不能改</span><span class="word-label">可以直接改字</span></div><p id="message" role="status"></p></div>
 <div class="viewer-controls"><label>拖动对比 <input type="range" id="split" min="0" max="100" value="50"></label><span id="pager"><button id="prev" aria-label="上一页">‹</button><small id="pageNo"></small><button id="next" aria-label="下一页">›</button></span></div>
 </div><aside><ul id="results" class="panel"></ul><div class="actions"><button class="primary" id="zip"><svg><use href="#down"/></svg> 全部下载（zip）</button><button id="again">再转一批</button><div class="pet-slot"></div></div></aside>
 </section>
