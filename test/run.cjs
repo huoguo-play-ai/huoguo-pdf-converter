@@ -37,6 +37,35 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     );
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(pathToFileURL(path.join(root, "dist/PDF转Word.html")).href);
+    const fontState = await page.evaluate(async () => {
+      await document.fonts.ready;
+      const title = getComputedStyle(document.querySelector("#idle h1"));
+      const subsets = Array.from(document.styleSheets[0].cssRules).filter(
+        (rule) => rule.type === CSSRule.FONT_FACE_RULE,
+      );
+      return {
+        subsets: subsets.length,
+        inlineBytes: subsets.reduce(
+          (sum, rule) => sum + new TextEncoder().encode(rule.cssText).length,
+          0,
+        ),
+        loaded: [...document.fonts]
+          .filter((face) => face.status === "loaded")
+          .map((face) => face.family),
+        title: title.fontFamily.split(",")[0].replaceAll('"', ""),
+        weight: title.fontWeight,
+        spacing: title.letterSpacing,
+        size: title.fontSize,
+      };
+    });
+    for (const family of ["ObliqueTitleUI", "NotoSansSCUI", "InterUI"])
+      assert(fontState.loaded.includes(family), family + " 未加载");
+    assert.equal(fontState.subsets, 9);
+    assert(fontState.inlineBytes <= 300_000, "内联字体超过 300 KB");
+    assert.equal(fontState.title, "ObliqueTitleUI");
+    assert.equal(fontState.weight, "400");
+    assert.equal(fontState.spacing, "0.5px");
+    assert.equal(fontState.size, "64px");
     const names = fs
         .readdirSync(path.join(fixtures, "测试样本"))
         .filter((f) => f.endsWith(".pdf"))

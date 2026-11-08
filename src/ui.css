@@ -5,7 +5,13 @@
   --line: #dae2ed;
   --speed: 1;
   --shadow: 0 16px 38px rgba(40, 89, 178, 0.09);
-  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family:
+    "InterUI",
+    "NotoSansSCUI",
+    -apple-system,
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
   color: var(--ink);
   background: #f3f6fb;
 }
@@ -78,7 +84,6 @@ main > header {
 }
 .brand {
   font-size: clamp(18px, 1.6vw, 28px);
-  font-weight: 750;
   gap: 0.6em;
 }
 .brand span,
@@ -136,7 +141,6 @@ figure {
 h1 {
   font-size: clamp(38px, 4.8vw, 88px);
   line-height: 1.2;
-  letter-spacing: -0.035em;
 }
 em {
   font-style: normal;
@@ -184,8 +188,20 @@ button.primary {
   background: var(--blue);
   border-color: var(--blue);
   color: white;
-  font-weight: 650;
   box-shadow: 0 8px 18px #1f5fe033;
+}
+main > section > h1,
+#idle h2,
+#count,
+.brand,
+#counter,
+.captions b,
+button.primary,
+.features span {
+  font-family: "ObliqueTitleUI", "InterUI", "NotoSansSCUI", sans-serif;
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: 0.5px;
 }
 button.primary:hover:not(:disabled) {
   background: #174fc5;
@@ -978,5 +994,10 @@ progress::-webkit-progress-value {
   }
   .record .queue-panel {
     height: 66vh;
+  }
+}
+@media (orientation: landscape) {
+  #idle h1 {
+    font-size: 64px;
   }
 }

@@ -41,6 +41,7 @@
 在仓库根目录运行：
 
 ```sh
+python3 -m pip install fonttools brotli
 npm ci --omit=optional --ignore-scripts
 npm run build
 npm test
@@ -49,6 +50,18 @@ npm test
 成品包含 PDF.js、CMap、标准字体数据、JSZip、docx-preview 和吉祥物图片。PDF.js 在主线程解析，CSP 禁止联网。使用成品无需安装 Node.js、Python 或 LibreOffice。
 
 测试使用同级 `claude-python-version` 中的样本和参考 DOCX。测试机需要 Python 3 和 Chromium 浏览器，可用 `CHROME_PATH` 指定浏览器。安装 LibreOffice 时，渲染步骤还使用 Poppler 和 ImageMagick，图片位于 `test-output/渲染`，左侧为原稿，右侧为转换结果。`检查结果.json` 记录结构差异、网络请求和页面错误。两种窗口尺寸下的四个界面状态截图位于 `test-output/界面`。测试输出不纳入版本控制。
+
+## 字体与许可证
+
+界面标题使用得意黑，正文中的英文和数字使用 Inter，中文使用 Noto Sans SC。构建时从界面源码收集字符，以 FontTools 生成 WOFF2 子集并内联到 HTML。文件名中超出子集的字符由系统字体显示。Word 预览和导出的文档继续使用转换时选择的字体。
+
+三种字体均采用 SIL Open Font License 1.1。源字体保存在 `assets/fonts/`，许可证全文随离线 HTML 分发。得意黑的界面子集使用独立名称 `ObliqueTitleUI`。
+
+| 字体 | 官方来源 | 许可证原文 |
+| --- | --- | --- |
+| 得意黑 | [Smiley Sans v2.0.1](https://github.com/atelier-anchor/smiley-sans/releases/tag/v2.0.1) | [SmileySans-OFL.txt](assets/fonts/licenses/SmileySans-OFL.txt) |
+| Noto Sans SC | [Noto CJK 简体中文 OTF](https://github.com/notofonts/noto-cjk/tree/main/Sans/SubsetOTF/SC) | [NotoSansSC-OFL.txt](assets/fonts/licenses/NotoSansSC-OFL.txt) |
+| Inter | [Inter 4.1](https://github.com/rsms/inter/releases/tag/v4.1) | [Inter-OFL.txt](assets/fonts/licenses/Inter-OFL.txt) |
 
 ### 转换接口
 
