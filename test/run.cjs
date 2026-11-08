@@ -79,16 +79,58 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     }
     console.table(rows);
     assert(
-      fs.statSync(path.join(root, "dist/PDF转Word.html")).size < 7_000_000,
+      fs.statSync(path.join(root, "dist/PDF转Word.html")).size < 12_000_000,
     );
+    const expectMood = async (mood) => {
+      const layer = page.locator(
+        `#pet[data-mood="${mood}"] [data-image="${mood}"]`,
+      );
+      await layer.waitFor();
+      await page.waitForFunction((m) => {
+        const el = document.querySelector(`#pet [data-image="${m}"]`);
+        return getComputedStyle(el).opacity === "1";
+      }, mood);
+    };
+    await expectMood("idle");
+    for (const mood of ["idle", "expect", "focus", "happy", "sad"]) {
+      const img = page.locator(`[data-image="${mood}"] img`);
+      assert.equal(
+        await img.getAttribute("src"),
+        "data:image/webp;base64," +
+          fs
+            .readFileSync(path.join(root, "assets/moods", mood + ".webp"))
+            .toString("base64"),
+      );
+    }
     await page.emulateMedia({ reducedMotion: "reduce" });
-    assert.equal(
-      await page
-        .locator("#pet img")
-        .evaluate((e) => getComputedStyle(e).animationName),
-      "fade",
+    assert.equal(await page.locator(".pet-layer img:visible").count(), 0);
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".pet-layer canvas")].every((c) =>
+        c
+          .getContext("2d")
+          .getImageData(0, 0, c.width, c.height)
+          .data.some((v, i) => i % 4 === 3 && v > 0),
+      ),
     );
     await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.evaluate(() => {
+      const pet = document.querySelector("#pet");
+      window.moodChanges = {};
+      new MutationObserver(() => {
+        window.moodChanges[pet.dataset.mood] = performance.now();
+      }).observe(pet, { attributes: true, attributeFilter: ["data-mood"] });
+    });
+    const expectMixedReport = async () => {
+      await expectMood("sad");
+      await expectMood("happy");
+      const duration = await page.evaluate(
+        () => window.moodChanges.happy - window.moodChanges.sad,
+      );
+      assert(
+        duration >= 1950 && duration < 3000,
+        "委屈状态持续 " + duration + " ms",
+      );
+    };
     const transfer = await page.evaluateHandle((bytes) => {
       const transfer = new DataTransfer();
       transfer.items.add(
@@ -102,6 +144,11 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
       .locator("#drop")
       .dispatchEvent("dragenter", { dataTransfer: transfer });
     assert(await page.locator("#drop.over").count());
+    await expectMood("expect");
+    await page
+      .locator("#drop")
+      .dispatchEvent("dragleave", { dataTransfer: transfer });
+    await expectMood("idle");
     await page
       .locator("#drop")
       .dispatchEvent("drop", { dataTransfer: transfer });
@@ -109,8 +156,10 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
       .locator("#append")
       .dispatchEvent("drop", { dataTransfer: transfer });
     assert.equal(await page.locator("#list li").count(), 2);
+    await expectMood("expect");
     await transfer.dispose();
     await page.locator("#clear").click();
+    await expectMood("idle");
     await page.evaluate(() => {
       const convert = window.pdfToDocx;
       window.measuredMs = 0;
@@ -149,16 +198,19 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
         ),
       );
       await page.waitForTimeout(650);
+      await expectMood("expect");
       await shot("2-拖入文件");
       await page.evaluate(() => {
         window.measuredMs = 0;
       });
       await page.locator("#go").click();
+      await expectMood("focus");
       await page.locator("#sourceThumb canvas").waitFor();
       await page.locator("#blocks .block").first().waitFor();
       await page.waitForTimeout(175);
       await shot("3-转换中");
       await page.locator("#report").waitFor();
+      await expectMixedReport();
       assert.deepEqual(
         await page.locator("#results .tag").allTextContents(),
         rows.map((r) => r.status),
@@ -400,6 +452,30 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
         "这不是 PDF 文件",
       ),
     );
+    await expectMixedReport();
+    const successful = files[rows.findIndex((r) => r.status === "成功")];
+    const scanned = files[rows.findIndex((r) => r.status === "扫描件已跳过")];
+    const invalid = {
+      name: "损坏.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("invalid"),
+    };
+    for (const [file, mood] of [
+      [successful, "happy"],
+      [scanned, "sad"],
+      [invalid, "sad"],
+    ]) {
+      await page.locator("#again").click();
+      await expectMood("idle");
+      await page.locator("#file").setInputFiles(file);
+      await page.locator("#go").click();
+      await page.locator("#report").waitFor();
+      await expectMood(mood);
+      if (mood === "sad") {
+        await page.waitForTimeout(2100);
+        await expectMood("sad");
+      }
+    }
     console.log({ network, errors, violations });
     assert.deepEqual(network, []);
     assert.deepEqual(errors, []);

@@ -64,9 +64,15 @@ fs.writeFileSync(
   "dist/PDF转Word.html",
   read("src/ui.html")
     .replace("/* UI CSS */", () => read("src/ui.css"))
-    .replace(
-      "MASCOT_DATA",
-      fs.readFileSync("assets/mascot.webp").toString("base64"),
+    .replace("<!-- MOOD IMAGES -->", () =>
+      ["idle", "expect", "focus", "happy", "sad"]
+        .map((mood) => {
+          const data = fs
+            .readFileSync("assets/moods/" + mood + ".webp")
+            .toString("base64");
+          return `<span class="pet-layer" data-image="${mood}"><img src="data:image/webp;base64,${data}" width="300" height="400" alt=""><canvas width="300" height="400"></canvas></span>`;
+        })
+        .join(""),
     )
     .replace("<!-- BUNDLE -->", loader),
 );

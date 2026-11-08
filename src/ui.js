@@ -17,37 +17,43 @@
     el.textContent = value ?? "";
     return el;
   }
+  const pet = $("#pet");
+  const readyMoods = new Set();
+  let wantedMood = "idle",
+    moodTimer;
+
+  function showMood(mood) {
+    wantedMood = mood;
+    if (readyMoods.has(mood)) pet.dataset.mood = mood;
+  }
+  for (const layer of pet.querySelectorAll(".pet-layer")) {
+    const image = layer.querySelector("img");
+    image.decode().then(() => {
+      // Drawing an animated image to canvas uses its first frame.
+      layer.querySelector("canvas").getContext("2d").drawImage(image, 0, 0);
+      readyMoods.add(layer.dataset.image);
+      if (wantedMood === layer.dataset.image) showMood(wantedMood);
+    });
+  }
   function stateTo(next) {
     state = next;
     document.body.dataset.state = next;
     for (const id of ["idle", "queue", "running", "report"])
       $("#" + id).hidden = id !== next;
-    $("#" + next + " .pet-slot").append($("#pet"));
-    $("#pet").classList.remove("error");
-    $("#pet")
-      .querySelectorAll(".effect")
-      .forEach((el) => el.remove());
-    if (next === "running" || next === "report") {
-      const spark = next === "running";
-      for (const [i, [x, y]] of [
-        [2, 18],
-        [83, 32],
-        [10, 63],
-        [74, 5],
-      ].entries()) {
-        $("#pet").insertAdjacentHTML("beforeend", icon(spark ? "star" : "doc"));
-        const el = $("#pet").lastElementChild;
-        el.setAttribute("class", "effect " + (spark ? "spark" : "paper"));
-        el.style.cssText =
-          "--x:" + x + "%;--y:" + y + "%;--delay:" + i * 0.08 + "s";
-      }
+    const slot = $("#" + next + " .pet-slot");
+    if (pet.parentElement !== slot) slot.append(pet);
+    // Establish the outgoing layer's opacity in the newly visible slot.
+    void pet.offsetWidth;
+    clearTimeout(moodTimer);
+    if (next === "report") {
+      const successes = items.filter((it) => it.ok).length;
+      showMood(successes === items.length ? "happy" : "sad");
+      if (successes > 0 && successes < items.length)
+        moodTimer = setTimeout(() => showMood("happy"), 2000);
+    } else {
+      showMood({ idle: "idle", queue: "expect", running: "focus" }[next]);
     }
     $("#badge").innerHTML = icon("lock") + "断网可用 · 文件不出电脑";
-  }
-  function shake() {
-    $("#pet").classList.remove("error");
-    void $("#pet").offsetHeight;
-    $("#pet").classList.add("error");
   }
   async function withPdf(file, callback) {
     const task = pdfjsLib.getDocument({
@@ -165,7 +171,6 @@
       });
     } catch {
       $("#sourceThumb").textContent = "无法预览此文件";
-      shake();
     }
     await new Promise((resolve) =>
       setTimeout(
@@ -210,7 +215,6 @@
       $("#progress").max = items.length;
       $("#progress").value = i + 1;
       await Promise.all([convert(it), showMotion(it)]);
-      if (!it.ok) shake();
     }
     const elapsed = (
       items.reduce((sum, it) => sum + (it.duration || 0), 0) / 1000
@@ -315,11 +319,7 @@
     $("#pdfLayer").replaceChildren();
     $("#wordLayer").replaceChildren();
     $("#message").textContent = it.ok ? "正在准备对比预览…" : it.error;
-    if (!it.ok) {
-      shake();
-      return;
-    }
-    $("#pet").classList.remove("error");
+    if (!it.ok) return;
     try {
       const host = node("div", "preview-doc");
       const styles = node("div", "");
@@ -512,7 +512,7 @@
     let depth = 0;
     function hovering(on) {
       zone.classList.toggle("over", on);
-      document.body.classList.toggle("hovering", on);
+      if (state === "idle") showMood(on ? "expect" : "idle");
     }
     zone.ondragenter = (e) => {
       e.preventDefault();
