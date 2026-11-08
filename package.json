@@ -1,0 +1,17 @@
+{
+  "name": "offline-pdf-to-word",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.cjs",
+    "test": "node test/run.cjs"
+  },
+  "dependencies": {
+    "jszip": "3.10.1",
+    "pdfjs-dist": "3.11.174"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1",
+    "prettier": "^3.6.2"
+  }
+}
