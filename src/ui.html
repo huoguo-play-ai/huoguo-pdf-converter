@@ -5,88 +5,46 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PDF 转 Word</title>
-<style>
-:root{--bg:#f5f3ef;--card:#fff;--ink:#1f2933;--muted:#6b7280;--line:#e7e3dc;--accent:#2f6f68;--accent-soft:#e6f0ee;--warn:#9a6a14;--warn-soft:#fbf3e2;--bad:#a23b32;--bad-soft:#fbeceb}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
-main{max-width:760px;margin:0 auto;padding:48px 20px 64px}
-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px}
-h1{font-size:26px;margin:0;letter-spacing:.5px}
-.sub{color:var(--muted);margin:4px 0 0;font-size:14px}
-.badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--accent);background:var(--accent-soft);padding:5px 10px;border-radius:999px;white-space:nowrap}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(31,41,51,.04)}
-#drop{border:1.5px dashed #cfc8bd;border-radius:14px;padding:38px 16px;text-align:center;cursor:pointer;transition:.15s}
-#drop:hover,#drop.over{border-color:var(--accent);background:var(--accent-soft)}
-#drop svg{color:var(--accent)}
-#drop strong{display:block;font-size:16px;margin:10px 0 2px}
-#drop span{color:var(--muted);font-size:13.5px}
-.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
-button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 16px;border-radius:10px;cursor:pointer;transition:.15s}
-button:hover:not(:disabled){border-color:#bdb5a8}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-button.primary:hover:not(:disabled){filter:brightness(1.08)}
-button:disabled{opacity:.45;cursor:default}
-.grow{flex:1}
-#progress{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:16px;display:none}
-#progress div{height:100%;width:0;background:var(--accent);transition:width .3s}
-ul{list-style:none;margin:16px 0 0;padding:0}
-li{display:flex;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--line)}
-li:first-child{border-top:0}
-.ico{width:34px;height:40px;border-radius:7px;background:#f1ece4;color:#a6402f;display:grid;place-items:center;font-size:10.5px;font-weight:700;flex:none}
-.meta{flex:1;min-width:0}
-.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.status{font-size:13px;color:var(--muted)}
-.tag{font-size:12px;padding:3px 9px;border-radius:999px;background:#f1efeb;color:var(--muted);white-space:nowrap}
-.tag.ok{background:var(--accent-soft);color:var(--accent)}
-.tag.warn{background:var(--warn-soft);color:var(--warn)}
-.tag.bad{background:var(--bad-soft);color:var(--bad)}
-.tag.run{background:#eef2f7;color:#41618a}
-li button{padding:5px 12px;font-size:13px}
-#report{margin-top:18px;display:none}
-#report h2{font-size:15px;margin:0 0 8px}
-#report p{margin:2px 0;font-size:13.5px;color:var(--muted)}
-footer{margin-top:20px;color:var(--muted);font-size:12.5px;text-align:center}
-.empty{color:var(--muted);font-size:13.5px;text-align:center;padding:10px 0 0}
-#font{appearance:none;-webkit-appearance:none;font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 32px 8px 14px;cursor:pointer;background:linear-gradient(45deg,transparent 50%,var(--muted) 50%) right 16px center/5px 5px no-repeat,linear-gradient(135deg,var(--muted) 50%,transparent 50%) right 11px center/5px 5px no-repeat,#fff}
-#font:hover{border-color:#bdb5a8}
-</style>
+<style>/* UI CSS */</style>
 </head>
-<body>
+<body data-state="idle">
+<svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<symbol id="doc" viewBox="0 0 24 24"><path d="M6 2h8l5 5v14H6z M14 2v6h5 M9 12h7 M9 16h5"/></symbol>
+<symbol id="upload" viewBox="0 0 24 24"><path d="M12 15V3m-5 5 5-5 5 5M3 15v5h18v-5"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M3 16v4h18v-4"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><path d="M5 10h14v11H5z M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="star" viewBox="0 0 24 24"><path d="m12 1 2.7 8.3L23 12l-8.3 2.7L12 23l-2.7-8.3L1 12l8.3-2.7z"/></symbol>
+</svg>
 <main>
-  <header>
-    <div>
-      <h1>PDF 转 Word</h1>
-      <p class="sub">保留排版，转出来就能直接改</p>
-    </div>
-    <span class="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>文件只在这台电脑上处理</span>
-  </header>
-
-  <section class="card">
-    <div id="drop" tabindex="0">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 15V4m0 0-4 4m4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-      <strong>把 PDF 拖到这里</strong>
-      <span>或点击选择文件，可以一次选多个</span>
-      <input id="file" type="file" accept=".pdf,application/pdf" multiple hidden>
-    </div>
-    <div id="progress"><div></div></div>
-    <ul id="list"></ul>
-    <p class="empty" id="empty">还没有文件</p>
-    <div class="bar">
-      <button class="primary" id="go" disabled>开始转换</button>
-      <label>字体 <select id="font"><option value="PingFang SC">苹方（Mac）</option><option value="Microsoft YaHei">微软雅黑（Windows）</option></select></label><span class="grow"></span>
-      <button id="zip" disabled>全部下载（zip）</button>
-      
-      <button id="clear" disabled>清空</button>
-    </div>
-  </section>
-
-  <section class="card" id="report">
-    <h2>转换报告</h2>
-    <div id="reportBody"></div>
-  </section>
-
-  <footer>扫描件（整页都是图片的 PDF）暂不支持文字识别</footer>
+<header><div class="brand"><span><svg><use href="#doc"/></svg></span>PDF 转 Word</div><span id="badge" role="status"></span></header>
+<input id="file" type="file" accept=".pdf,application/pdf" multiple hidden>
+<section id="idle">
+<h1>PDF 拖进来，<em>Word 带走</em></h1><p class="subtitle">排版几乎不变，打开就能直接改</p>
+<div id="drop" class="drop"><div class="upload"><svg><use href="#upload"/></svg></div><h2>把 PDF 拖到这里</h2><p>支持一次拖入多个文件</p><button class="primary pick">选择文件</button><div class="pet-slot"></div></div>
+<div class="features"><span>▢ &nbsp;批量转换</span><span>≡ &nbsp;版式还原</span><span>✎ &nbsp;打开就能改</span></div>
+</section>
+<section id="queue" hidden>
+<div class="panel queue-panel"><div class="queue-title"><h2 id="count"></h2><small id="meta"></small></div><ul id="list"></ul>
+<div class="tools"><button class="primary" id="go"></button><label>字体 <select id="font"><option value="PingFang SC">苹方（Mac）</option><option value="Microsoft YaHei">微软雅黑（Windows）</option></select></label><button id="clear">清空</button></div></div>
+<aside><button class="drop pick" id="append"><svg><use href="#upload"/></svg><strong>继续拖入</strong><small>或点这里选择更多文件</small></button><div class="pet-slot"></div></aside>
+</section>
+<section id="running" hidden>
+<div class="spread"><figure><div id="sourceThumb" class="sheet"></div><figcaption>读取原稿</figcaption></figure><div class="direction">⟶<small>正在重排</small></div><figure><div id="blocks" class="sheet"></div><figcaption>段落、表格、分隔线逐个归位</figcaption></figure></div>
+<div class="progress-row"><div><strong id="counter"></strong><progress id="progress"></progress></div><div class="pet-slot"></div></div>
+</section>
+<section id="report" hidden>
+<h1 class="mobile-title">上面是 PDF<br><em>下面是 Word</em></h1>
+<div class="panel viewer"><div class="captions"><b>原 PDF</b><b>转换后的 Word</b></div>
+<div class="viewport"><div id="compare">
+<div id="pdfLayer" class="layer"></div><div id="wordLayer" class="layer"></div>
+<span class="pdf-label">只能看，不能改</span><span class="word-label">可以直接改字</span>
+<div id="divider"><button id="handle" aria-label="调整对比分割位置">‹ ›</button></div></div><p id="message" role="status"></p></div>
+<div class="viewer-controls"><label>拖动对比 <input type="range" id="split" min="0" max="100" value="50"></label><span id="pager"><button id="prev" aria-label="上一页">‹</button><small id="pageNo"></small><button id="next" aria-label="下一页">›</button></span></div>
+</div><aside><ul id="results" class="panel"></ul><div class="actions"><button class="primary" id="zip"><svg><use href="#down"/></svg> 全部下载（zip）</button><button id="again">再转一批</button><div class="pet-slot"></div></div></aside>
+</section>
+<footer>扫描件暂不支持文字识别</footer>
 </main>
+<div id="pet" aria-hidden="true"><img src="data:image/webp;base64,MASCOT_DATA" alt=""></div>
+<div id="toast" role="status"></div>
 <!-- BUNDLE -->
-</body>
-</html>
+</body></html>

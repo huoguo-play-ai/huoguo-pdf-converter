@@ -1,172 +1,510 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const items = [];
-  let busy = false;
-
-  function htmlEscape(s) {
-    return s.replace(
-      /[&<>"]/g,
-      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
-    );
+  const mobile = matchMedia("(max-width:639px),(orientation:portrait)");
+  let state,
+    active,
+    pageNumber,
+    selection = 0,
+    paint = 0,
+    documentView,
+    elapsed,
+    toastTimer;
+  const icon = (name) =>
+    '<svg aria-hidden="true"><use href="#' + name + '"/></svg>';
+  function node(tag, className, value) {
+    const el = document.createElement(tag);
+    el.className = className;
+    el.textContent = value ?? "";
+    return el;
   }
-  function tagClass(st) {
-    return (
-      { 成功: "ok", 扫描件已跳过: "warn", 失败: "bad", 转换中: "run" }[st] || ""
-    );
-  }
-
-  function render() {
-    $("#list").innerHTML = items
-      .map(
-        (it, i) => `
-    <li>
-      <div class="ico">PDF</div>
-      <div class="meta">
-        <div class="name" title="${htmlEscape(it.file.name)}">${htmlEscape(it.file.name)}</div>
-        <div class="status">${it.pages ? it.pages + " 页 · " : ""}${htmlEscape(it.error || (it.output ? "可下载为 " + it.output : (it.file.size / 1024).toFixed(0) + " KB"))}</div>
-      </div>
-      <span class="tag ${tagClass(it.status)}">${it.status}</span>
-      ${it.output ? `<button data-i="${i}">下载</button>` : ""}
-    </li>`,
-      )
-      .join("");
-    $("#empty").style.display = items.length ? "none" : "block";
-    const waiting = items.some((it) => it.status === "等待中");
-    $("#go").disabled = busy || !waiting;
-    $("#clear").disabled = busy || !items.length;
-    $("#zip").disabled = busy || !items.some((it) => it.output);
-  }
-
-  function add(files) {
-    for (const f of files) {
-      items.push({ file: f, status: "等待中" });
-    }
-    render();
-  }
-
-  async function run() {
-    busy = true;
-    render();
-    const todo = items.filter((it) => it.status === "等待中");
-    $("#progress").style.display = "block";
-    let done = 0;
-    for (const it of todo) {
-      it.status = "转换中";
-      render();
-      try {
-        Object.assign(
-          it,
-          await window.pdfToDocx(await it.file.arrayBuffer(), {
-            font: $("#font").value,
-          }),
-        );
-        if (it.ok) {
-          const base = it.file.name.replace(/\.pdf$/i, "");
-          let n = 1;
-          it.output = base + ".docx";
-          while (items.some((o) => o !== it && o.output === it.output))
-            it.output = base + " (" + ++n + ").docx";
-        }
-      } catch (e) {
-        it.status = "失败";
-        it.error = "无法读取文件（" + e.message + "）";
+  function stateTo(next) {
+    state = next;
+    document.body.dataset.state = next;
+    for (const id of ["idle", "queue", "running", "report"])
+      $("#" + id).hidden = id !== next;
+    $("#" + next + " .pet-slot").append($("#pet"));
+    $("#pet").classList.remove("error");
+    $("#pet")
+      .querySelectorAll(".effect")
+      .forEach((el) => el.remove());
+    if (next === "running" || next === "report") {
+      const spark = next === "running";
+      for (const [i, [x, y]] of [
+        [2, 18],
+        [83, 32],
+        [10, 63],
+        [74, 5],
+      ].entries()) {
+        $("#pet").insertAdjacentHTML("beforeend", icon(spark ? "star" : "doc"));
+        const el = $("#pet").lastElementChild;
+        el.setAttribute("class", "effect " + (spark ? "spark" : "paper"));
+        el.style.cssText =
+          "--x:" + x + "%;--y:" + y + "%;--delay:" + i * 0.08 + "s";
       }
-      done++;
-      $("#progress div").style.width = (done / todo.length) * 100 + "%";
-      render();
     }
-    busy = false;
-    render();
-    report();
-    setTimeout(() => {
-      $("#progress").style.display = "none";
-      $("#progress div").style.width = "0";
-    }, 800);
+    $("#badge").innerHTML = icon("lock") + "断网可用 · 文件不出电脑";
   }
-
-  function report() {
-    const g = (s) => items.filter((it) => it.status === s);
-    const ok = g("成功"),
-      scan = g("扫描件已跳过"),
-      bad = g("失败");
-    const line = (t, arr, f) =>
-      `<p><b>${t}（${arr.length}）</b>${arr.length ? "：" + arr.map(f).join("；") : ""}</p>`;
-    $("#reportBody").innerHTML =
-      line(
-        "成功",
-        ok,
-        (it) => htmlEscape(it.file.name) + " → " + htmlEscape(it.output),
-      ) +
-      line("扫描件已跳过", scan, (it) => htmlEscape(it.file.name)) +
-      line(
-        "失败",
-        bad,
-        (it) =>
-          htmlEscape(it.file.name) + "（" + htmlEscape(it.error || "") + "）",
+  function shake() {
+    $("#pet").classList.remove("error");
+    void $("#pet").offsetHeight;
+    $("#pet").classList.add("error");
+  }
+  async function withPdf(file, callback) {
+    const task = pdfjsLib.getDocument({
+      data: new Uint8Array(await file.arrayBuffer()),
+      CMapReaderFactory: MemoryCMap,
+      StandardFontDataFactory: MemoryStandardFonts,
+      useWorkerFetch: false,
+      cMapPacked: true,
+      isEvalSupported: false,
+      useSystemFonts: true,
+      disableFontFace: false,
+      isOffscreenCanvasSupported: false,
+    });
+    try {
+      return await callback(await task.promise);
+    } finally {
+      await task.destroy();
+    }
+  }
+  async function thumbnail(page) {
+    const view = page.getViewport({ scale: 1 });
+    const sized = page.getViewport({
+      scale: Math.min(2, 1200 / Math.max(view.width, view.height)),
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(sized.width);
+    canvas.height = Math.ceil(sized.height);
+    await page.render({
+      canvasContext: canvas.getContext("2d"),
+      viewport: sized,
+    }).promise;
+    return { canvas, width: view.width, height: view.height };
+  }
+  function add(files) {
+    if (!["idle", "queue"].includes(state) || !files.length) return;
+    if (state !== "queue") stateTo("queue");
+    for (const file of files) {
+      const it = { file, status: "等待中" };
+      items.push(it);
+      const row = node("li", "");
+      row.style.setProperty(
+        "--delay",
+        Math.min(items.length - 1, 8) * 0.055 + "s",
       );
-    $("#report").style.display = "block";
+      const meta = node("div", "file-meta");
+      const size =
+        file.size >= 1048576
+          ? (file.size / 1048576).toFixed(1) + " MB"
+          : Math.ceil(file.size / 1024) + " KB";
+      const info = node("small", "", size);
+      meta.append(node("b", "", file.name), info);
+      row.append(
+        node("span", "ico", "PDF"),
+        meta,
+        node("span", "tag", it.status),
+      );
+      $("#list").append(row);
+      withPdf(file, (pdf) => pdf.numPages)
+        .then((pages) => {
+          it.pages = pages;
+          info.textContent = pages + " 页 · " + size;
+          if (state === "queue" && items.includes(it)) queueTitle();
+        })
+        .catch(() => {
+          info.textContent = "页数未知 · " + size;
+        });
+    }
+    queueTitle();
   }
-
-  async function download(names, zip) {
-    const files = items.filter((it) => names.includes(it.output));
+  function queueTitle() {
+    $("#count").textContent = "已添加 " + items.length + " 个文件";
+    $("#meta").textContent = items.every((it) => it.pages)
+      ? "共 " + items.reduce((n, it) => n + it.pages, 0) + " 页 · 可继续添加"
+      : "可继续添加文件";
+    $("#go").textContent = "开始转换（" + items.length + " 个文件）";
+  }
+  function drawLayout(pg) {
+    const lines = makeLines(pg.chars).flatMap((line) =>
+      line.segments.map((seg) => ({
+        ...seg,
+        top: line.top,
+        bottom: line.top + Math.max(2, line.size * 0.52),
+        fill: line.color,
+      })),
+    );
+    const elements = [...pg.shapes, ...pg.images, ...lines].map((box, i) => {
+      const el = node("i", "block");
+      const color = box.fill || box.stroke || "cbdaf3";
+      el.style.cssText = [
+        "left:" + (100 * box.x0) / pg.w + "%",
+        "top:" + (100 * box.top) / pg.h + "%",
+        "width:" + Math.max(0.25, (100 * (box.x1 - box.x0)) / pg.w) + "%",
+        "height:" + Math.max(0.25, (100 * (box.bottom - box.top)) / pg.h) + "%",
+        "background:#" + color,
+        "--dx:" + (i % 2 ? 1 : -1) * (14 + (i % 27)) + "px",
+        "--dy:" + (i % 3 ? 1 : -1) * (10 + (i % 17)) + "px",
+        "--angle:" + ((i % 11) - 5) + "deg",
+        "--delay:calc(" + (i % 19) * 0.016 + "s * var(--speed))",
+      ].join(";");
+      return el;
+    });
+    $("#blocks").replaceChildren(...elements);
+  }
+  async function showMotion(it) {
+    $("#sourceThumb").replaceChildren();
+    $("#blocks").replaceChildren();
+    try {
+      await withPdf(it.file, async (pdf) => {
+        const page = await pdf.getPage(1);
+        const thumb = await thumbnail(page);
+        for (const el of document.querySelectorAll(".sheet"))
+          el.style.aspectRatio = thumb.width + "/" + thumb.height;
+        $("#sourceThumb").append(thumb.canvas);
+        drawLayout(await parsePage(page));
+      });
+    } catch {
+      $("#sourceThumb").textContent = "无法预览此文件";
+      shake();
+    }
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        document.body.classList.contains("record") ? 1800 : 1200,
+      ),
+    );
+  }
+  async function convert(it) {
+    try {
+      Object.assign(
+        it,
+        await window.pdfToDocx(await it.file.arrayBuffer(), {
+          font: $("#font").value,
+        }),
+      );
+      if (it.ok) {
+        const base = it.file.name.replace(/\.pdf$/i, "");
+        it.output = base + ".docx";
+        let n = 1;
+        while (
+          items.some((other) => other !== it && other.output === it.output)
+        )
+          it.output = base + " (" + ++n + ").docx";
+      }
+    } catch (e) {
+      it.status = "失败";
+      it.error = "无法读取文件（" + e.message + "）";
+    }
+  }
+  async function run() {
+    if (state !== "queue") return;
+    const start = performance.now();
+    stateTo("running");
+    for (const [i, it] of items.entries()) {
+      $("#badge").textContent = "正在转换 " + it.file.name;
+      $("#counter").textContent =
+        "第 " + (i + 1) + " / " + items.length + " 个文件";
+      $("#progress").max = items.length;
+      $("#progress").value = i + 1;
+      await Promise.all([convert(it), showMotion(it)]);
+      if (!it.ok) shake();
+    }
+    elapsed = ((performance.now() - start) / 1000).toFixed(1);
+    stateTo("report");
+    $("#badge").textContent =
+      "✓ " + items.length + " 个文件全部完成 · 用时 " + elapsed + " 秒";
+    renderResults();
+    $("#zip").disabled = !items.some((it) => it.ok);
+    await selectFile(items.find((it) => it.ok) || items[0]);
+  }
+  function renderResults() {
+    $("#results").replaceChildren(
+      ...items.map((it) => {
+        const row = node("li", "result");
+        const pick = node("button", "");
+        pick.setAttribute("aria-current", String(it === active));
+        const meta = node("span", "file-meta");
+        meta.append(node("b", "", it.output || it.file.name));
+        if (it.error) meta.append(node("small", "", it.error));
+        pick.append(
+          meta,
+          node(
+            "span",
+            "tag " + (it.ok ? "ok" : it.status === "失败" ? "bad" : "warn"),
+            it.status,
+          ),
+        );
+        pick.onclick = () => selectFile(it);
+        row.append(pick);
+        if (it.ok) {
+          const single = node("button", "download");
+          single.innerHTML = icon("down");
+          single.setAttribute("aria-label", "下载 " + it.output);
+          single.onclick = () => download(it);
+          row.append(single);
+        }
+        return row;
+      }),
+    );
+  }
+  async function selectFile(it) {
+    const token = ++selection;
+    paint++;
+    active = it;
+    pageNumber = 1;
+    documentView = null;
+    renderResults();
+    $("#compare").hidden = true;
+    $("#pager").hidden = true;
+    $("#pdfLayer").replaceChildren();
+    $("#wordLayer").replaceChildren();
+    $("#message").textContent = it.ok ? "正在准备对比预览…" : it.error;
+    if (!it.ok) {
+      shake();
+      return;
+    }
+    $("#pet").classList.remove("error");
+    try {
+      const host = node("div", "preview-doc");
+      const styles = node("div", "");
+      const options = {
+        inWrapper: false,
+        useBase64URL: true,
+        ignoreLastRenderedPageBreak: false,
+        renderAltChunks: false,
+      };
+      const model = await window.docx.parseAsync(it.docx, options);
+      // The renderer recognizes run-level page breaks but skips direct paragraph
+      // pageBreakBefore properties. Normalize its in-memory preview model only.
+      const body = model.documentPart.body;
+      const children = [];
+      for (const paragraph of body.children) {
+        if (paragraph.pageBreakBefore && children.length) {
+          let previous = children.at(-1);
+          if (previous.type !== "paragraph") {
+            previous = { type: "paragraph", children: [] };
+            children.push(previous);
+          }
+          previous.children.push({
+            type: "run",
+            children: [{ type: "break", break: "page" }],
+          });
+        }
+        children.push(paragraph);
+      }
+      body.children = children;
+      await window.docx.renderDocument(model, host, styles, options);
+      if (token !== selection) return;
+      const sections = [...host.querySelectorAll("section.docx")];
+      if (!sections.length) throw new Error("Word 预览没有生成页面");
+      $("#wordLayer").replaceChildren(styles, host);
+      documentView = {
+        host,
+        sections,
+        count: Math.max(it.pages, sections.length),
+      };
+      await showPage();
+    } catch (e) {
+      if (token === selection)
+        $("#message").textContent = "预览失败：" + e.message;
+    }
+  }
+  async function showPage() {
+    const token = ++paint,
+      view = documentView,
+      it = active,
+      n = pageNumber;
+    $("#prev").disabled = n <= 1;
+    $("#next").disabled = n >= view.count;
+    $("#pager").hidden = view.count <= 1;
+    $("#message").textContent = "正在读取页面…";
+    try {
+      const thumb =
+        n <= it.pages
+          ? await withPdf(it.file, async (pdf) =>
+              thumbnail(await pdf.getPage(n)),
+            )
+          : null;
+      if (token !== paint) return;
+      view.sections.forEach((el, i) => (el.hidden = i !== n - 1));
+      $("#pdfLayer").replaceChildren(
+        thumb?.canvas || node("p", "", "原 PDF 无此页"),
+      );
+      view.thumb = thumb;
+      $("#wordLayer").querySelector(".missing")?.remove();
+      if (!view.sections[n - 1])
+        $("#wordLayer").append(node("p", "missing", "Word 无此页"));
+      $("#pageNo").textContent = n + " / " + view.count;
+      $("#compare").hidden = false;
+      $("#message").textContent = "";
+      fit();
+    } catch (e) {
+      if (token === paint)
+        $("#message").textContent = "无法预览此页：" + e.message;
+    }
+  }
+  function fit() {
+    if (!documentView || $("#compare").hidden) return;
+    const { thumb, host, sections } = documentView;
+    const section = sections[pageNumber - 1];
+    const box = $(".viewport"),
+      padding = parseFloat(getComputedStyle(box).paddingLeft) * 2;
+    const aspect = thumb
+      ? thumb.width / thumb.height
+      : section?.offsetWidth / section?.offsetHeight || 0.707;
+    const w = Math.min(
+      box.clientWidth - padding,
+      (box.clientHeight - padding) * aspect,
+    );
+    $("#compare").style.width = w + "px";
+    $("#compare").style.height = w / aspect + "px";
+    if (section)
+      host.style.transform =
+        "scale(" +
+        Math.min(w / section.offsetWidth, w / aspect / section.offsetHeight) +
+        ")";
+  }
+  new ResizeObserver(fit).observe($(".viewport"));
+  function split(value) {
+    const n = Math.max(0, Math.min(100, Math.round(value)));
+    $("#split").value = n;
+    $("#compare").style.setProperty("--split", n + "%");
+  }
+  function pointer(e) {
+    const r = $("#compare").getBoundingClientRect();
+    split(
+      100 *
+        (mobile.matches
+          ? (e.clientY - r.top) / r.height
+          : (e.clientX - r.left) / r.width),
+    );
+  }
+  const frame = $("#compare");
+  frame.onpointerdown = (e) => {
+    frame.setPointerCapture(e.pointerId);
+    pointer(e);
+  };
+  frame.onpointermove = (e) => {
+    if (frame.hasPointerCapture(e.pointerId)) pointer(e);
+  };
+  $("#split").oninput = (e) => split(e.target.value);
+  $("#handle").onkeydown = (e) => {
+    const steps = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
+    if (e.key in steps) {
+      e.preventDefault();
+      split(Number($("#split").value) + steps[e.key]);
+    }
+  };
+  $("#prev").onclick = () => {
+    pageNumber--;
+    showPage();
+  };
+  $("#next").onclick = () => {
+    pageNumber++;
+    showPage();
+  };
+  async function download(it) {
     let blob;
-    if (zip) {
-      const z = new JSZip();
-      for (const it of files) z.file(it.output, it.docx);
-      blob = await z.generateAsync({ type: "blob" });
-    } else
-      blob = new Blob([files[0].docx], {
+    if (it)
+      blob = new Blob([it.docx], {
         type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
+    else {
+      const zip = new JSZip();
+      for (const item of items.filter((item) => item.ok))
+        zip.file(item.output, item.docx);
+      blob = await zip.generateAsync({ type: "blob" });
+    }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = zip ? "转换结果.zip" : names[0];
+    a.download = it ? it.output : "转换结果.zip";
     document.body.append(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
   }
+  function reset() {
+    selection++;
+    paint++;
+    active = null;
+    documentView = null;
+    items.length = 0;
+    for (const id of [
+      "list",
+      "results",
+      "pdfLayer",
+      "wordLayer",
+      "sourceThumb",
+      "blocks",
+    ])
+      $("#" + id).replaceChildren();
+    split(50);
+    stateTo("idle");
+  }
   $("#font").value = defaultFont;
-  $("#drop").onclick = (e) => {
-    if (e.target !== $("#file")) $("#file").click();
-  };
-  $("#drop").onkeydown = (e) => {
-    if (e.key === "Enter" || e.key === " ") $("#file").click();
-  };
+  document
+    .querySelectorAll(".pick")
+    .forEach((b) => (b.onclick = () => $("#file").click()));
   $("#file").onchange = (e) => {
     add(e.target.files);
     e.target.value = "";
   };
-  ["dragenter", "dragover"].forEach((t) =>
-    $("#drop").addEventListener(t, (e) => {
+  for (const zone of document.querySelectorAll(".drop")) {
+    let depth = 0;
+    function hovering(on) {
+      zone.classList.toggle("over", on);
+      document.body.classList.toggle("hovering", on);
+    }
+    zone.ondragenter = (e) => {
       e.preventDefault();
-      $("#drop").classList.add("over");
-    }),
-  );
-  ["dragleave", "drop"].forEach((t) =>
-    $("#drop").addEventListener(t, (e) => {
+      depth++;
+      hovering(true);
+    };
+    zone.ondragleave = () => {
+      if (--depth <= 0) {
+        depth = 0;
+        hovering(false);
+      }
+    };
+    zone.ondragover = (e) => {
       e.preventDefault();
-      $("#drop").classList.remove("over");
-    }),
-  );
-  $("#drop").addEventListener("drop", (e) => add(e.dataTransfer.files));
-  document.addEventListener("dragover", (e) => e.preventDefault());
-  document.addEventListener("drop", (e) => e.preventDefault());
+      e.dataTransfer.dropEffect = "copy";
+    };
+    zone.ondrop = (e) => {
+      e.preventDefault();
+      depth = 0;
+      hovering(false);
+      add(e.dataTransfer.files);
+    };
+  }
+  for (const type of ["dragover", "drop"])
+    document.addEventListener(type, (e) => e.preventDefault());
   $("#go").onclick = run;
-  $("#list").onclick = (e) => {
-    const b = e.target.closest("button");
-    if (b) download([items[b.dataset.i].output]);
-  };
-  $("#zip").onclick = () =>
-    download(
-      items.filter((it) => it.output).map((it) => it.output),
-      true,
-    );
-
-  $("#clear").onclick = () => {
-    items.length = 0;
-    $("#report").style.display = "none";
-    render();
-  };
-  render();
+  $("#zip").onclick = () => download();
+  $("#again").onclick = $("#clear").onclick = reset;
+  document.addEventListener("keydown", (e) => {
+    if (
+      e.key.toLowerCase() !== "r" ||
+      e.repeat ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.altKey ||
+      e.target.matches(
+        "input:not([type=range]),textarea,[contenteditable=true]",
+      )
+    )
+      return;
+    const on = document.body.classList.toggle("record");
+    const toast = $("#toast");
+    clearTimeout(toastTimer);
+    toast.classList.remove("show");
+    toast.textContent = on ? "录屏模式" : "";
+    if (on) {
+      void toast.offsetHeight;
+      toast.classList.add("show");
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 2000);
+    }
+  });
+  stateTo("idle");
 })();

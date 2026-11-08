@@ -18,6 +18,10 @@
 | 双栏排版 | Word 的分栏，文字会在两栏之间自动流动 |
 | 每页底部的页脚 | Word 页脚，页码换成会自动更新的页码 |
 
+转换完成后可以拖动蓝色手柄对比原 PDF 和生成的 Word，也可以用滑块和方向键调整分割位置。竖屏时上下对比。点击结果列表可以切换文件，多页文件可用页码旁的按钮翻页。Word 预览使用本机字体，具体分页与换行以下载后在 Word 中打开的结果为准。
+
+按 R 键切换录屏模式，界面放大约 15%，动画时长增加至 1.5 倍。系统开启“减少动态效果”后，界面使用淡入淡出。
+
 ### 使用限制
 
 - 扫描件会跳过，工具不提供文字识别（OCR）。
@@ -42,9 +46,9 @@ npm run build
 npm test
 ```
 
-成品包含 PDF.js、CMap、标准字体数据和 JSZip。PDF.js 在主线程解析，CSP 禁止联网。使用成品无需安装 Node.js、Python 或 LibreOffice。
+成品包含 PDF.js、CMap、标准字体数据、JSZip、docx-preview 和吉祥物图片。PDF.js 在主线程解析，CSP 禁止联网。使用成品无需安装 Node.js、Python 或 LibreOffice。
 
-测试使用同级 `claude-python-version` 中的样本和参考 DOCX。测试机需要 Python 3 和 Chromium 浏览器，可用 `CHROME_PATH` 指定浏览器。安装 LibreOffice 时，渲染步骤还使用 Poppler 和 ImageMagick，图片位于 `test-output/渲染`，左侧为原稿，右侧为转换结果。`检查结果.json` 记录结构差异、网络请求和页面错误。测试输出不纳入版本控制。
+测试使用同级 `claude-python-version` 中的样本和参考 DOCX。测试机需要 Python 3 和 Chromium 浏览器，可用 `CHROME_PATH` 指定浏览器。安装 LibreOffice 时，渲染步骤还使用 Poppler 和 ImageMagick，图片位于 `test-output/渲染`，左侧为原稿，右侧为转换结果。`检查结果.json` 记录结构差异、网络请求和页面错误。两种窗口尺寸下的四个界面状态截图位于 `test-output/界面`。测试输出不纳入版本控制。
 
 ### 转换接口
 

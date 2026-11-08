@@ -20,6 +20,8 @@ const parts = ["pdf.worker.min.js", "pdf.min.js"].map((f) =>
   read(path.join(root, "build", f)),
 );
 parts.push(read(require.resolve("jszip/dist/jszip.min.js")));
+const previewRoot = path.dirname(require.resolve("docx-preview"));
+parts.push(read(path.join(previewRoot, "docx-preview.min.js")));
 parts.push(
   "(()=>{const CMAPS=" +
     JSON.stringify(maps) +
@@ -46,6 +48,7 @@ const licenses = [
     .filter((f) => f.startsWith("LICENSE"))
     .map((f) => path.join(root, "standard_fonts", f)),
   require.resolve("jszip/LICENSE.markdown"),
+  path.join(previewRoot, "../LICENSE"),
 ]
   .map(read)
   .join("\n");
@@ -59,5 +62,11 @@ const loader =
 fs.mkdirSync("dist", { recursive: true });
 fs.writeFileSync(
   "dist/PDF转Word.html",
-  read("src/ui.html").replace("<!-- BUNDLE -->", loader),
+  read("src/ui.html")
+    .replace("/* UI CSS */", () => read("src/ui.css"))
+    .replace(
+      "MASCOT_DATA",
+      fs.readFileSync("assets/mascot.webp").toString("base64"),
+    )
+    .replace("<!-- BUNDLE -->", loader),
 );
