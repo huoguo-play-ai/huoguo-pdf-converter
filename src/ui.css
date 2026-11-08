@@ -63,8 +63,7 @@ main > header,
 .features,
 .queue-title,
 .captions,
-.viewer-controls,
-.progress-row {
+.viewer-controls {
   display: flex;
   align-items: center;
 }
@@ -418,20 +417,38 @@ aside,
 #pet[data-mood="happy"] {
   animation: celebrate 420ms ease-out;
 }
+#running {
+  --sheet-height: min(350px, 50vh);
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-top: min(10vh, 76px);
+}
 .spread {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 3vw;
-  margin-top: 4vh;
+  gap: clamp(16px, 4vw, 64px);
+  max-width: 1080px;
+  margin-inline: auto;
 }
 .spread figure {
-  width: min(24vw, 42vh);
   text-align: center;
+  min-width: 0;
+}
+.running-mascot .pet-slot {
+  width: min(255px, 37.5vh, 22vw);
+  aspect-ratio: 3 / 4;
+  margin-inline: auto;
+}
+#running #pet {
+  max-width: none;
+  max-height: none;
 }
 .sheet {
-  width: 100%;
-  aspect-ratio: 3/4;
+  --page-ratio: 0.75;
+  width: min(100%, calc(var(--sheet-height) * var(--page-ratio)));
+  aspect-ratio: var(--page-ratio);
+  margin-inline: auto;
   background: white;
   position: relative;
   overflow: hidden;
@@ -458,26 +475,14 @@ figcaption {
 }
 .direction {
   color: var(--blue);
-  font-size: 4vw;
   text-align: center;
-}
-.direction small {
-  display: block;
   font-size: 14px;
-  color: inherit;
-  font-weight: bold;
+  font-weight: 650;
+  margin-top: 4px;
 }
 .progress-row {
-  width: min(62%, 880px);
-  gap: 1.5vw;
-  margin: 3vh auto 0;
-}
-.progress-row > div:first-child {
-  flex: 1;
-}
-.progress-row .pet-slot {
-  width: 12vh;
-  height: 15vh;
+  width: min(100%, 760px);
+  margin: clamp(16px, 5vh, 48px) auto 0;
 }
 progress {
   display: block;
@@ -794,22 +799,26 @@ progress::-webkit-progress-value {
   #append {
     gap: 3px;
   }
+  #running {
+    --sheet-height: min(225px, 26vh);
+    padding-top: min(2vh, 16px);
+  }
   .spread {
-    gap: 2vw;
-    margin-top: 12vh;
+    grid-template-columns: minmax(0, 1fr);
+    gap: min(2vh, 16px);
   }
-  .spread figure {
-    width: 40%;
+  .spread figure:last-child {
+    display: none;
   }
-  .direction {
-    font-size: 7vw;
+  .running-mascot .pet-slot {
+    width: min(180px, 23vh, 55vw);
   }
-  .direction small,
-  figcaption {
-    font-size: 11px;
+  .spread figcaption {
+    font-size: 12px;
   }
   .progress-row {
     width: 92%;
+    margin-top: min(3vh, 24px);
   }
   .mobile-title {
     display: block;

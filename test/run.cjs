@@ -206,9 +206,60 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
       await page.locator("#go").click();
       await expectMood("focus");
       await page.locator("#sourceThumb canvas").waitFor();
-      await page.locator("#blocks .block").first().waitFor();
+      await page
+        .locator("#blocks .block")
+        .first()
+        .waitFor({ state: "attached" });
       await page.waitForTimeout(175);
-      await shot("3-转换中");
+      for (const recording of [false, true]) {
+        if (recording) await page.keyboard.press("r");
+        const bounds = async (selector) => {
+          const box = await page.locator(selector).boundingBox();
+          assert(box && box.width > 0 && box.height > 0, selector);
+          assert(
+            box.x >= 0 &&
+              box.y >= 0 &&
+              box.x + box.width <= width + 1 &&
+              box.y + box.height <= height + 1,
+            selector + " 超出画面",
+          );
+          return box;
+        };
+        const original = await bounds("#sourceThumb");
+        const pet = await bounds("#running #pet[data-mood=focus]");
+        const caption = await bounds(".direction");
+        const counter = await bounds("#counter");
+        const progress = await bounds("#progress");
+        assert(Math.abs(pet.width / pet.height - 0.75) < 0.01);
+        assert(Math.abs(pet.x + pet.width / 2 - width / 2) < 2);
+        assert(
+          caption.y >= pet.y + pet.height - 1 &&
+            counter.y > caption.y + caption.height,
+        );
+        assert(progress.y >= counter.y + counter.height - 1);
+        assert(Math.abs(progress.x + progress.width / 2 - width / 2) < 2);
+        if (width === 1280) {
+          const reflow = await bounds("#blocks");
+          assert(
+            original.x + original.width < pet.x && pet.x + pet.width < reflow.x,
+          );
+          if (!recording) {
+            assert(Math.abs(pet.height - 340) < 2);
+            assert(Math.abs(progress.width - 760) < 2);
+          }
+        } else {
+          assert(original.y + original.height < pet.y);
+          assert.equal(await page.locator("#blocks").isVisible(), false);
+          if (!recording) assert(Math.abs(pet.width - 180) < 2);
+        }
+        assert(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        );
+        await shot(recording ? "3-转换中-录屏" : "3-转换中");
+        if (recording) await page.keyboard.press("r");
+      }
       await page.locator("#report").waitFor();
       await expectMixedReport();
       assert.deepEqual(

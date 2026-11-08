@@ -165,7 +165,7 @@
         const page = await pdf.getPage(1);
         const thumb = await thumbnail(page);
         for (const el of document.querySelectorAll(".sheet"))
-          el.style.aspectRatio = thumb.width + "/" + thumb.height;
+          el.style.setProperty("--page-ratio", thumb.width / thumb.height);
         $("#sourceThumb").append(thumb.canvas);
         drawLayout(await parsePage(page));
       });
