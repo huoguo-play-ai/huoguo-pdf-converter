@@ -39,7 +39,6 @@
 
   function add(files) {
     for (const f of files) {
-      if (!/\.pdf$/i.test(f.name)) continue;
       items.push({ file: f, status: "等待中" });
     }
     render();
@@ -70,7 +69,7 @@
         }
       } catch (e) {
         it.status = "失败";
-        it.error = e.message;
+        it.error = "无法读取文件（" + e.message + "）";
       }
       done++;
       $("#progress div").style.width = (done / todo.length) * 100 + "%";
