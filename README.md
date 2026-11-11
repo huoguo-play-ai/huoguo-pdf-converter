@@ -1,8 +1,12 @@
-# PDF 转 Word
+# 火锅PDF转换器
+
+双击打开、断网可用的 PDF 转 Word 网页工具。不用文本框，而是用 Word 自带的段落、制表位、边框、表格和分栏重建版式，转出来的 Word 排版几乎和原 PDF 一样，打开就能直接改字。
+
+**直接使用：** 下载 [`dist/火锅PDF转换器.html`](dist/火锅PDF转换器.html)，用 Chrome、Edge 等浏览器打开即可，不需要安装任何东西，文件不会上传。
 
 ## 使用说明
 
-双击 `dist/PDF转Word.html`，选择或拖入 PDF，点击「开始转换」。成功的文件可以单独下载，也可以打包成 ZIP。页面根据系统选择苹方或微软雅黑，转换前可切换字体。扫描件按整份文档平均每页少于 10 个非空白字符判定。
+双击 `dist/火锅PDF转换器.html`，选择或拖入 PDF，点击「开始转换」。成功的文件可以单独下载，也可以打包成 ZIP。页面根据系统选择苹方或微软雅黑，转换前可切换字体。扫描件按整份文档平均每页少于 10 个非空白字符判定。
 
 | PDF 里的东西 | 在 Word 里变成 |
 | --- | --- |
@@ -50,6 +54,10 @@ npm test
 成品包含 PDF.js、CMap、标准字体数据、JSZip、docx-preview 和吉祥物图片。PDF.js 在主线程解析，CSP 禁止联网。使用成品无需安装 Node.js、Python 或 LibreOffice。
 
 测试使用同级 `claude-python-version` 中的样本和参考 DOCX。测试机需要 Python 3 和 Chromium 浏览器，可用 `CHROME_PATH` 指定浏览器。安装 LibreOffice 时，渲染步骤还使用 Poppler 和 ImageMagick，图片位于 `test-output/渲染`，左侧为原稿，右侧为转换结果。`检查结果.json` 记录结构差异、网络请求和页面错误。两种窗口尺寸下的四个界面状态截图位于 `test-output/界面`。测试输出不纳入版本控制。
+
+## 吉祥物
+
+界面里的吉祥物动图（`assets/moods/`）由作者提供，版权归作者所有，不随代码一起开放使用。
 
 ## 字体与许可证
 

@@ -111,7 +111,7 @@ const loader =
   '){const s=document.createElement("script");s.textContent=new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0)));document.body.append(s);}</script>';
 fs.mkdirSync("dist", { recursive: true });
 fs.writeFileSync(
-  "dist/PDF转Word.html",
+  "dist/火锅PDF转换器.html",
   uiHtml
     .replace("/* UI CSS */", () => buildFontFaces() + "\n" + uiCss)
     .replace("<!-- MOOD IMAGES -->", () =>

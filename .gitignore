@@ -1,3 +1,7 @@
 node_modules/
 test-output/
 .DS_Store
+_to_delete/
+design/
+assets/mascot.png
+assets/mascot-*.png

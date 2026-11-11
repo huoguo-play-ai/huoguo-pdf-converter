@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PDF 转 Word</title>
+<title>火锅PDF转换器</title>
 <style>/* UI CSS */</style>
 </head>
 <body data-state="idle">
@@ -19,7 +19,7 @@
 <symbol id="lock" viewBox="0 0 24 24"><path d="M5 10h14v11H5z M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
 </svg>
 <main>
-<header><div class="brand"><span><svg><use href="#doc"/></svg></span>PDF 转 Word</div><span id="badge" role="status"></span></header>
+<header><div class="brand"><span><svg><use href="#doc"/></svg></span>火锅PDF转换器</div><span id="badge" role="status"></span></header>
 <input id="file" type="file" accept=".pdf,application/pdf" multiple hidden>
 <section id="idle">
 <h1>PDF 拖进来，<em>Word 带走</em></h1><p class="subtitle">排版几乎不变，打开就能直接改</p>
@@ -32,7 +32,7 @@
 <aside><button class="drop pick" id="append"><svg><use href="#upload"/></svg><strong>继续拖入</strong><small>或点这里选择更多文件</small></button><div class="pet-slot"></div></aside>
 </section>
 <section id="running" hidden>
-<div class="spread"><figure><div id="sourceThumb" class="sheet"></div><figcaption>读取原稿</figcaption></figure><div class="running-mascot"><div class="pet-slot"></div><div class="direction"><span aria-hidden="true">⟶</span> 正在重排</div></div><figure><div id="blocks" class="sheet"></div><figcaption>段落、表格、分隔线逐个归位</figcaption></figure></div>
+<div class="spread"><figure><div id="sourceThumb" class="sheet"></div><figcaption>读取原稿</figcaption></figure><div class="running-mascot"><div class="pet-slot"></div><div class="direction">正在重排</div></div><figure><div id="blocks" class="sheet"></div><figcaption>段落、表格、分隔线逐个归位</figcaption></figure></div>
 <div class="progress-row"><strong id="counter"></strong><progress id="progress"></progress></div>
 </section>
 <section id="report" hidden>

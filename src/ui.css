@@ -492,9 +492,11 @@ figcaption {
 .direction {
   color: var(--blue);
   text-align: center;
-  font-size: 14px;
+  font-size: 42px;
   font-weight: 650;
-  margin-top: 4px;
+  line-height: 1.2;
+  white-space: nowrap;
+  margin-top: 8px;
 }
 .progress-row {
   width: min(100%, 760px);
@@ -720,6 +722,9 @@ progress::-webkit-progress-value {
 }
 .record main > footer {
   display: none;
+}
+.record #running {
+  padding-top: min(5vh, 38px);
 }
 @keyframes arrive {
   from {

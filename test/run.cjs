@@ -36,7 +36,7 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
       ),
     );
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto(pathToFileURL(path.join(root, "dist/PDF转Word.html")).href);
+    await page.goto(pathToFileURL(path.join(root, "dist/火锅PDF转换器.html")).href);
     const fontState = await page.evaluate(async () => {
       await document.fonts.ready;
       const title = getComputedStyle(document.querySelector("#idle h1"));
@@ -108,7 +108,7 @@ const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     }
     console.table(rows);
     assert(
-      fs.statSync(path.join(root, "dist/PDF转Word.html")).size < 12_000_000,
+      fs.statSync(path.join(root, "dist/火锅PDF转换器.html")).size < 12_000_000,
     );
     const expectMood = async (mood) => {
       const layer = page.locator(
